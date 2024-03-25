@@ -12,7 +12,7 @@ import { readableReport } from "./logging";
 export const TableStorageVersionDocument = t.type({
   rowKey: t.string,
   partitionKey: t.string,
-  id: t.string,
+  timestamp: t.number,
 });
 export type TableStorageVersionDocument = t.TypeOf<
   typeof TableStorageVersionDocument
@@ -94,14 +94,23 @@ export const getTableDocument = <A, S>(
 export const getTableDocuments = <A, S>(
   tableClient: DT.TableClient,
   pk: string,
-  filter: string,
-  documentId: string,
-  type: t.Type<S, A>
+  type: t.Type<S, A>,
+  filter?: string
 ): TE.TaskEither<Error, ReadonlyArray<S>> =>
   pipe(
-    tableClient.listEntities({
-      queryOptions: { filter: DT.odata`PartitionKey eq '${pk}'` },
-    }),
+    `PartitionKey eq '${pk}'`,
+    (primaryCondition) =>
+      pipe(
+        filter,
+        O.fromNullable,
+        O.map((f) => ` and ${f}`),
+        O.getOrElse(() => ""),
+        (conditions) => `${primaryCondition}${conditions}`
+      ),
+    (filterQuery) =>
+      tableClient.listEntities({
+        queryOptions: { filter: DT.odata`${filterQuery}` },
+      }),
     (results) => TE.tryCatch(() => asyncIteratorToArray(results), E.toError),
     TE.map((rawDocs) =>
       pipe(
@@ -117,11 +126,10 @@ export const getTableDocuments = <A, S>(
     )
   );
 
-export const upsertTableDocument = <S extends TableStorageVersionDocument>(
-  tableClient: DT.TableClient,
-  document: S
-): TE.TaskEither<Error, void> =>
-  pipe(
-    TE.tryCatch(() => tableClient.upsertEntity(document), E.toError),
-    TE.map(constVoid)
-  );
+export const upsertTableDocument =
+  <S extends TableStorageVersionDocument>(tableClient: DT.TableClient) =>
+  (document: S): TE.TaskEither<Error, void> =>
+    pipe(
+      TE.tryCatch(() => tableClient.upsertEntity(document), E.toError),
+      TE.map(constVoid)
+    );

@@ -21,4 +21,4 @@ COPY --from=builder /usr/src/app/node_modules /usr/src/app/node_modules
 
 EXPOSE 80
 
-CMD ["node", "dist/index.js"]
+CMD ["node", "dist/app.js"]

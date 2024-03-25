@@ -13,8 +13,8 @@ export const Initiative = t.union([
 ]);
 export type Initiative = t.TypeOf<typeof Initiative>;
 
-export const SubscribePayload = t.type({
+export const EnqueuePayload = t.type({
   fiscalCode: FiscalCode,
   initiative: Initiative,
 });
-export type SubscribePayload = t.TypeOf<typeof SubscribePayload>;
+export type EnqueuePayload = t.TypeOf<typeof EnqueuePayload>;
