@@ -1,0 +1,126 @@
+version: "2.2"
+
+services:
+
+  cosmosdb:
+    image: mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:latest
+    container_name: azure-cosmosdb-linux-emulator
+    hostname: "azure-cosmosdb-linux-emulator"
+    tty: true
+    mem_limit: 12GB
+    cpu_count: 8
+    networks:
+       - poc-be
+    ports:
+      - 8082:8081
+      - 10251:10251
+      - 10252:10252
+      - 10253:10253
+      - 10254:10254
+    expose:
+      - "8082"
+      - "10251-10255"
+    environment:
+      - AZURE_COSMOS_EMULATOR_PARTITION_COUNT=10
+      - AZURE_COSMOS_EMULATOR_ENABLE_DATA_PERSISTENCE=true
+      - AZURE_COSMOS_EMULATOR_IP_ADDRESS_OVERRIDE=127.0.0.1
+
+  storage-account:
+    image: mcr.microsoft.com/azure-storage/azurite
+    container_name: storage-account
+    restart: always
+    command: "azurite --blobHost 0.0.0.0 --blobPort 20003 --queueHost 0.0.0.0 --queuePort 20004 --tableHost 0.0.0.0 --tablePort 20005"
+    ports:
+      - "20003:20003"
+      - "20004:20004"
+      - "20005:20005"
+    networks:
+       - poc-be
+
+  es01:
+    container_name: es01
+    image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION}
+    environment: ['ES_JAVA_OPTS=-Xms2g -Xmx2g','bootstrap.memory_lock=true','discovery.type=single-node','xpack.security.enabled=false', 'xpack.security.enrollment.enabled=false']
+    ports:
+      - ${ES_PORT}:9200
+    networks:
+      - poc-be
+
+  kibana:
+    depends_on:
+      - es01
+    image: docker.elastic.co/kibana/kibana:${STACK_VERSION}
+    container_name: kib01
+    environment:
+      XPACK_APM_SERVICEMAPENABLED: "true"
+      XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY: d1a66dfd-c4d3-4a0a-8290-2abcb83ab3aa
+      LOGGING_ROOT_LEVEL: error
+    ports:
+      - 5601:5601
+    networks:
+      - poc-be
+
+  data-importer:
+    depends_on:
+      - cosmosdb
+    container_name: data-importer
+    restart: always
+    build:
+      context: ./data-importer
+      dockerfile: Dockerfile
+    environment:
+      - NODE_TLS_REJECT_UNAUTHORIZED=0
+    env_file:
+      - ./data-importer/.dockerenv
+    expose:
+      - "3000"
+    ports:
+      - "3000:3000"
+    command: ["yarn", "start"]
+    networks:
+      - poc-be
+
+  cdc-data-exporter:
+    depends_on:
+      - cosmosdb
+      - storage-account
+      - es01
+    container_name: cdc-data-exporter
+    restart: always
+    build:
+      context: ./cdc-data-exporter
+      dockerfile: Dockerfile
+    environment:
+      - NODE_TLS_REJECT_UNAUTHORIZED=0
+    env_file:
+      - ./cdc-data-exporter/.dockerenv
+    command: ["yarn", "start"]
+    networks:
+      - poc-be
+  
+  load-test:
+    depends_on:
+      - cosmosdb
+      - storage-account
+      - es01
+      - cdc-data-exporter
+      - data-importer
+    container_name: load-test
+    build:
+      context: ./load-test
+      dockerfile: Dockerfile
+    env_file:
+      - ./load-test/.dockerenv
+    command: run /dist/bulk_document.js
+    networks:
+      - poc-be
+
+volumes:
+  certs:
+    driver: local
+
+networks:
+  poc-be:
+    driver: bridge
+    driver_opts:
+      com.docker.network.driver.mtu: 1450
