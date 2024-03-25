@@ -8,3 +8,4 @@ load-test/node_modules/*
 load-test/node_modules
 scout-ms/node_modules/*
 scout-ms/node_modules
+**/.env
