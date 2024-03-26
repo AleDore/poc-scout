@@ -127,7 +127,7 @@ export const getTableDocuments = <A, S>(
   );
 
 export const upsertTableDocument =
-  <S extends TableStorageVersionDocument>(tableClient: DT.TableClient) =>
+  <S extends DT.TableEntity>(tableClient: DT.TableClient) =>
   (document: S): TE.TaskEither<Error, void> =>
     pipe(
       TE.tryCatch(() => tableClient.upsertEntity(document), E.toError),

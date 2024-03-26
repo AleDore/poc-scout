@@ -12,16 +12,60 @@ import { InitiativeEnum, MassiveSubscribePayload } from "./utils/types";
 import { readableReport } from "./utils/logging";
 import {
   createTableIfNotExists,
-  getTableClient,
   getTableServiceClient,
-  upsertTableDocument,
 } from "./utils/tableStorage";
-import { defaultDocumentHandler } from "./handlers/message";
+import { cosmosDocumentHandler } from "./handlers/message";
 import { ampqHandler } from "./handlers/ampq";
+import {
+  cosmosConnect,
+  createContainerIfNotExists,
+  createDatabaseIfNotExists,
+  getDocuments,
+  upsertDocument,
+} from "./utils/cosmos";
 
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 export const createApp = async () => {
   const config = getConfigOrThrow();
+
+  const initializeCosmos = pipe(
+    cosmosConnect(config.COSMOS_ENDPOINT, config.COSMOS_KEY),
+    TE.chain((client) =>
+      createDatabaseIfNotExists(client, config.COSMOS_DATABASE)
+    ),
+    TE.chain((database) =>
+      createContainerIfNotExists(database, {
+        id: config.COSMOS_CONTAINER,
+        partitionKey: { paths: ["/initiative"] },
+        indexingPolicy: {
+          automatic: true,
+          compositeIndexes: [
+            [
+              {
+                path: "/initiative",
+                order: "ascending",
+              },
+              {
+                path: "/timestamp",
+                order: "ascending",
+              },
+            ],
+          ],
+          includedPaths: [
+            {
+              path: "/*",
+            },
+          ],
+        },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any)
+    ),
+    TE.getOrElse((e) => {
+      throw e;
+    })
+  );
+
+  const CONTAINER = await initializeCosmos();
 
   const initializeTableStorage = pipe(
     getTableServiceClient(config.STORAGE_CONN_STRING, {
@@ -57,6 +101,15 @@ export const createApp = async () => {
     res.status(200).json({ status: "OK" })
   );
 
+  app.get("/search", (_: express.Request, res) =>
+    pipe(
+      getDocuments(CONTAINER)("initiative", "foo"),
+      TE.map((docs) => res.status(200).json({ items: docs })),
+      TE.mapLeft((err) => res.status(500).json({ error: String(err) })),
+      TE.toUnion
+    )()
+  );
+
   app.post("/subscribe", (req: express.Request, res) =>
     pipe(
       req.body,
@@ -77,11 +130,9 @@ export const createApp = async () => {
   });
 
   const runAmpqHandlers = pipe(
-    getTableClient(config.STORAGE_CONN_STRING, "scout", {
-      allowInsecureConnection: config.ALLOW_INSECURE_CONNECTION,
-    }),
-    upsertTableDocument,
-    defaultDocumentHandler,
+    CONTAINER,
+    upsertDocument,
+    cosmosDocumentHandler,
     (docHandler) =>
       pipe(
         Object.entries(CONSUMERS),

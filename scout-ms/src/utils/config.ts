@@ -17,6 +17,10 @@ import { readableReport } from "./logging";
 export type IConfig = t.TypeOf<typeof IConfig>;
 export const IConfig = t.type({
   ALLOW_INSECURE_CONNECTION: BooleanFromString,
+  COSMOS_CONTAINER: NonEmptyString,
+  COSMOS_DATABASE: NonEmptyString,
+  COSMOS_ENDPOINT: NonEmptyString,
+  COSMOS_KEY: NonEmptyString,
   AMPQ_CONNECTION_STRING: NonEmptyString,
   STORAGE_CONN_STRING: NonEmptyString,
   isProduction: t.boolean,

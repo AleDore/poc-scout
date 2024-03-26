@@ -1,5 +1,6 @@
 import { NonNegativeInteger } from "@pagopa/ts-commons/lib/numbers";
 import { FiscalCode } from "@pagopa/ts-commons/lib/strings";
+import * as TE from "fp-ts/TaskEither";
 import * as t from "io-ts";
 
 export enum InitiativeEnum {
@@ -24,3 +25,5 @@ export const MassiveSubscribePayload = t.type({
   numberOfSubscriptions: NonNegativeInteger,
 });
 export type MassiveSubscribePayload = t.TypeOf<typeof MassiveSubscribePayload>;
+
+export type DocumentUpserter<T> = (document: T) => TE.TaskEither<Error, void>;
