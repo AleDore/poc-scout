@@ -5,11 +5,11 @@ import * as E from "fp-ts/lib/Either";
 import * as t from "io-ts";
 import { pipe } from "fp-ts/lib/function";
 
-export const K6Config = t.interface({
-  rate: IntegerFromString,
+export const K6Config = t.type({
   duration: NonEmptyString,
-  preAllocatedVUs: IntegerFromString,
   maxVUs: IntegerFromString,
+  preAllocatedVUs: IntegerFromString,
+  rate: IntegerFromString
 });
 export type K6Config = t.TypeOf<typeof K6Config>;
 
@@ -18,12 +18,12 @@ export const IConfig = t.intersection([
   t.type({
     CRUD_BASE_URL: NonEmptyString
   }),
-  K6Config,
+  K6Config
 ]);
 
 // No need to re-evaluate this object for each call
 const errorOrConfig: t.Validation<IConfig> = IConfig.decode({
-  ...__ENV,
+  ...__ENV
 });
 
 /**
@@ -48,7 +48,7 @@ export function getConfig(): t.Validation<IConfig> {
 export function getConfigOrThrow(): IConfig {
   return pipe(
     errorOrConfig,
-    E.getOrElseW((errors) => {
+    E.getOrElseW(errors => {
       throw new Error(`Invalid configuration: ${readableReport(errors)}`);
     })
   );

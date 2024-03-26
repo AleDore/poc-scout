@@ -4,7 +4,6 @@
 import { check, sleep } from "k6";
 import http from "k6/http";
 import * as NAR from "fp-ts/lib/NonEmptyArray";
-import * as E from "fp-ts/lib/Either";
 import { pipe } from "fp-ts/lib/function";
 import { getConfigOrThrow } from "./utils/config";
 import { generateDocument } from "./utils/generator";
@@ -37,53 +36,26 @@ const params = {
 export default function() {
   // Values from env var.
   const crudBaseUrl = `${config.CRUD_BASE_URL}`;
-  const url = `${crudBaseUrl}/documents`;
-  // eslint-disable-next-line functional/prefer-readonly-type
-  const oddsDocuments: Array<ReturnType<typeof generateDocument>> = [];
+  const url = `${crudBaseUrl}/enqueue`;
 
   pipe(
     NAR.range(1, 100),
-    NAR.map(idx =>
+    NAR.map(() =>
       pipe(generateDocument(), document =>
         pipe(
-          idx % 2 !== 0,
-          E.fromPredicate(
-            isOdd => isOdd,
-            () => {
-              // eslint-disable-next-line functional/immutable-data
-              oddsDocuments.push(document);
-            }
-          ),
-          E.toUnion,
-          () =>
-            http.post(url, JSON.stringify(document), {
-              ...params,
-              tags: { api: "newDocument" }
-            }),
-          res =>
-            check(
-              res,
-              { "newDocument status was 200": r => r.status === 200 },
-              { tags: JSON.stringify({ api: "newDocument" }) }
-            )
-        )
-      )
-    ),
-    () =>
-      oddsDocuments.map(oddDocument =>
-        pipe(
-          http.post(url, JSON.stringify(oddDocument), {
+          http.post(url, JSON.stringify(document), {
             ...params,
-            tags: { api: "upsertDocument" }
+            tags: { api: "enqueue" }
           }),
           res =>
             check(
               res,
-              { "upsertDocument status was 200": r => r.status === 200 },
-              { tags: JSON.stringify({ api: "upsertDocument" }) }
+              { "subscription status was 200": r => r.status === 200 },
+              { tags: JSON.stringify({ api: "enqueue" }) }
             )
         )
-      ),
+      )
+    ),
     () => sleep(2)
   );
 }

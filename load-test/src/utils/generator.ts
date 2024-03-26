@@ -24,8 +24,8 @@ export const generateMessageId = (): string =>
 
 export const generateDocument = (): {
   readonly fiscalCode: string;
-  readonly id: string;
+  readonly initiative: string;
 } => ({
   fiscalCode: generateFakeFiscalCode("8"),
-  id: generateMessageId()
+  initiative: "FOO"
 });
