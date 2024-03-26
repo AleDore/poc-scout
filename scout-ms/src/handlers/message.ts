@@ -5,12 +5,12 @@ import { upsertTableDocument } from "../utils/tableStorage";
 
 export const defaultDocumentHandler =
   (documentUpserter: ReturnType<typeof upsertTableDocument>) =>
-  (ampqDocument: MessagePayload, timestamp: Date): TE.TaskEither<Error, void> =>
+  (ampqDocument: MessagePayload): TE.TaskEither<Error, void> =>
     pipe(
       {
         rowKey: ampqDocument.fiscalCode,
         partitionKey: String(ampqDocument.initiative),
-        timestamp: timestamp.getTime(),
+        timestamp: ampqDocument.timestamp,
       },
       documentUpserter
     );

@@ -27,5 +27,5 @@ export const generateDocument = (): {
   readonly initiative: string;
 } => ({
   fiscalCode: generateFakeFiscalCode("8"),
-  initiative: "FOO"
+  initiative: "foo"
 });

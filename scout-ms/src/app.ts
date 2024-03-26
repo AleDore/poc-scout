@@ -24,7 +24,9 @@ export const createApp = async () => {
   const config = getConfigOrThrow();
 
   const initializeTableStorage = pipe(
-    getTableServiceClient(config.STORAGE_CONN_STRING),
+    getTableServiceClient(config.STORAGE_CONN_STRING, {
+      allowInsecureConnection: config.ALLOW_INSECURE_CONNECTION,
+    }),
     (client) => createTableIfNotExists(client, "scout" as NonEmptyString)
   );
   await initializeTableStorage();
@@ -71,24 +73,28 @@ export const createApp = async () => {
 
   app.listen(port, () => {
     // eslint-disable-next-line no-console
-    console.log(`Example app listening on port ${port}`);
+    console.log(`scout-ms app listening on port ${port}`);
   });
 
   const runAmpqHandlers = pipe(
-    getTableClient(config.STORAGE_CONN_STRING, "scout"),
+    getTableClient(config.STORAGE_CONN_STRING, "scout", {
+      allowInsecureConnection: config.ALLOW_INSECURE_CONNECTION,
+    }),
     upsertTableDocument,
     defaultDocumentHandler,
     (docHandler) =>
       pipe(
         Object.entries(CONSUMERS),
         (entries) =>
-          entries.map(([_, queue]) => ampqHandler(queue)(docHandler)),
+          entries.map(([initiative, queue]) =>
+            ampqHandler(queue, initiative)(docHandler)
+          ),
         AR.sequence(TE.ApplicativePar)
       ),
     TE.toUnion
   );
 
-  await runAmpqHandlers();
+  void runAmpqHandlers();
 };
 
 createApp().then(console.log).catch(console.error);

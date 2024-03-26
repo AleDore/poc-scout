@@ -1,6 +1,6 @@
 NODE_OPTIONS=--openssl-legacy-provider
-CRUD_BASE_URL=http://host.docker.internal:3000
-rate=200
-duration=10m
+CRUD_BASE_URL="http://api.localhost:3000"
+rate=10
+duration=1m
 preAllocatedVUs=5
-maxVUs=50
+maxVUs=10

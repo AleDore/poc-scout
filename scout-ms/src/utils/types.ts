@@ -16,6 +16,7 @@ export type Initiative = t.TypeOf<typeof Initiative>;
 export const MessagePayload = t.type({
   fiscalCode: FiscalCode,
   initiative: Initiative,
+  timestamp: t.number,
 });
 export type MessagePayload = t.TypeOf<typeof MessagePayload>;
 

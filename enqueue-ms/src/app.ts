@@ -42,13 +42,14 @@ export const createApp = async () => {
     pipe(
       req.body,
       EnqueuePayload.decode,
-      E.mapLeft((errs) =>
-        res.status(400).json({ error: readableReport(errs) })
-      ),
+      E.mapLeft((errs) => Error(readableReport(errs))),
       TE.fromEither,
       TE.chainW((payload) =>
         pipe(PUBLISHERS[payload.initiative], (publisher) =>
-          publishMessage(publisher, payload)
+          publishMessage(payload.initiative)(publisher, {
+            ...payload,
+            timestamp: Date.now(),
+          })
         )
       ),
       TE.map(() => res.status(200).json({ status: "OK" })),
@@ -59,7 +60,7 @@ export const createApp = async () => {
 
   app.listen(port, () => {
     // eslint-disable-next-line no-console
-    console.log(`Example app listening on port ${port}`);
+    console.log(`enqueue-ms app listening on port ${port}`);
   });
 };
 

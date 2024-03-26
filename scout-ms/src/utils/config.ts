@@ -10,11 +10,13 @@ import * as t from "io-ts";
 import * as E from "fp-ts/lib/Either";
 import { pipe } from "fp-ts/lib/function";
 import { NonEmptyString } from "@pagopa/ts-commons/lib/strings";
+import { BooleanFromString } from "@pagopa/ts-commons/lib/booleans";
 import { readableReport } from "./logging";
 
 // global app configuration
 export type IConfig = t.TypeOf<typeof IConfig>;
 export const IConfig = t.type({
+  ALLOW_INSECURE_CONNECTION: BooleanFromString,
   AMPQ_CONNECTION_STRING: NonEmptyString,
   STORAGE_CONN_STRING: NonEmptyString,
   isProduction: t.boolean,

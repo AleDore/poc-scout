@@ -1,4 +1,4 @@
-import { AMQPClient, AMQPQueue } from "@cloudamqp/amqp-client";
+import * as ampq from "amqplib";
 import { pipe } from "fp-ts/lib/function";
 import * as TE from "fp-ts/TaskEither";
 import * as RA from "fp-ts/ReadonlyArray";
@@ -8,25 +8,34 @@ import { InitiativeEnum } from "./types";
 export const getQueueConsumer = (
   connectionString: string,
   topicName: string
-): TE.TaskEither<Error, AMQPQueue> =>
+): TE.TaskEither<Error, ampq.Channel> =>
   pipe(
-    new AMQPClient(connectionString),
-    (client) => TE.tryCatch(() => client.connect(), E.toError),
-    TE.chain((bc) => TE.tryCatch(() => bc.channel(), E.toError)),
-    TE.chain((c) => TE.tryCatch(() => c.queue(topicName), E.toError))
+    TE.tryCatch(() => ampq.connect(connectionString), E.toError),
+    TE.bind("channel", (conn) =>
+      TE.tryCatch(() => conn.createChannel(), E.toError)
+    ),
+    TE.bind("assert", ({ channel }) =>
+      TE.tryCatch(() => channel.assertQueue(topicName), E.toError)
+    ),
+    TE.map(({ channel }) => channel)
   );
 
 export const initializeConsumers = (
   connectionString: string,
   initiatives: ReadonlyArray<InitiativeEnum>
-): TE.TaskEither<Error, { readonly [initiative: string]: AMQPQueue }> =>
+): TE.TaskEither<Error, { readonly [initiative: string]: ampq.Channel }> =>
   pipe(
     initiatives,
-    RA.map((initiative) => getQueueConsumer(connectionString, initiative)),
+    RA.map((initiative) =>
+      pipe(
+        getQueueConsumer(connectionString, initiative),
+        TE.map((channel) => ({ channel, initiative }))
+      )
+    ),
     RA.sequence(TE.ApplicativeSeq),
     TE.map(
       RA.reduce({}, (_, curr) => ({
-        [curr.name]: curr,
+        [curr.initiative]: curr.channel,
       }))
     )
   );

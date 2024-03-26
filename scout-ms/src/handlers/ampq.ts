@@ -1,4 +1,4 @@
-import { AMQPMessage, AMQPQueue } from "@cloudamqp/amqp-client";
+import * as ampq from "amqplib";
 import * as TE from "fp-ts/TaskEither";
 import * as E from "fp-ts/Either";
 import * as J from "fp-ts/Json";
@@ -7,21 +7,20 @@ import { readableReport } from "../utils/logging";
 import { MessagePayload } from "../utils/types";
 
 export const ampqHandler =
-  (queue: AMQPQueue) =>
+  (queueChannel: ampq.Channel, queueName: string) =>
   (
     documentHandler: (
-      ampqDocument: MessagePayload,
-      timestamp: Date
+      ampqDocument: MessagePayload
     ) => TE.TaskEither<Error, void>
   ): TE.TaskEither<Error, void> =>
     pipe(
       TE.tryCatch(
         () =>
-          queue.subscribe(
-            { noAck: false, exclusive: true },
-            async (msg: AMQPMessage) =>
+          queueChannel.consume(
+            queueName,
+            async (msg: ampq.ConsumeMessage) =>
               await pipe(
-                msg.bodyToString(),
+                msg.content.toString(),
                 J.parse,
                 E.mapLeft((errs) =>
                   Error(
@@ -41,11 +40,9 @@ export const ampqHandler =
                   )
                 ),
                 TE.fromEither,
-                TE.chain((doc) =>
-                  documentHandler(doc, msg.properties.timestamp)
-                ),
-                TE.chain(() => TE.tryCatch(() => msg.ack(), E.toError)),
-                TE.orElse(() => TE.tryCatch(() => msg.nack(true), E.toError)),
+                TE.chain(documentHandler),
+                TE.map(() => queueChannel.ack(msg)),
+                TE.orElse(() => TE.of(queueChannel.nack(msg))),
                 TE.toUnion
               )()
           ),

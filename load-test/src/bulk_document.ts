@@ -27,10 +27,8 @@ export const options = {
   }
 };
 
-const params = {
-  headers: {
-    "Content-Type": "application/json"
-  }
+const headers = {
+  "Content-Type": "application/json"
 };
 
 export default function() {
@@ -41,19 +39,24 @@ export default function() {
   pipe(
     NAR.range(1, 100),
     NAR.map(() =>
-      pipe(generateDocument(), document =>
-        pipe(
+      pipe(
+        generateDocument(),
+        document =>
           http.post(url, JSON.stringify(document), {
-            ...params,
+            ...{
+              headers: {
+                ...headers,
+                "Content-Length": `${JSON.stringify(document).length}`
+              }
+            },
             tags: { api: "enqueue" }
           }),
-          res =>
-            check(
-              res,
-              { "subscription status was 200": r => r.status === 200 },
-              { tags: JSON.stringify({ api: "enqueue" }) }
-            )
-        )
+        res =>
+          check(
+            res,
+            { "subscription status was 200": r => r.status === 200 },
+            { tags: JSON.stringify({ api: "enqueue" }) }
+          )
       )
     ),
     () => sleep(2)
