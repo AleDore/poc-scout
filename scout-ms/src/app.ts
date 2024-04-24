@@ -5,17 +5,10 @@ import * as E from "fp-ts/lib/Either";
 import express from "express";
 import * as bodyParser from "body-parser";
 import { pipe } from "fp-ts/lib/function";
-import { NonEmptyString } from "@pagopa/ts-commons/lib/strings";
 import { getConfigOrThrow } from "./utils/config";
-import { initializeConsumers } from "./utils/rabbit";
+import { initializeConsumers } from "./utils/service-bus";
 import { InitiativeEnum, MassiveSubscribePayload } from "./utils/types";
 import { readableReport } from "./utils/logging";
-import {
-  createTableIfNotExists,
-  getTableServiceClient,
-} from "./utils/tableStorage";
-import { cosmosDocumentHandler } from "./handlers/message";
-import { ampqHandler } from "./handlers/ampq";
 import {
   cosmosConnect,
   createContainerIfNotExists,
@@ -23,6 +16,8 @@ import {
   getDocuments,
   upsertDocument,
 } from "./utils/cosmos";
+import { serviceBusHandler } from "./handlers/service-bus";
+import { cosmosDocumentHandler } from "./handlers/message";
 
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 export const createApp = async () => {
@@ -36,21 +31,9 @@ export const createApp = async () => {
     TE.chain((database) =>
       createContainerIfNotExists(database, {
         id: config.COSMOS_CONTAINER,
-        partitionKey: { paths: ["/initiative"] },
+        partitionKey: { paths: ["/initiativeOrder"] },
         indexingPolicy: {
           automatic: true,
-          compositeIndexes: [
-            [
-              {
-                path: "/initiative",
-                order: "ascending",
-              },
-              {
-                path: "/timestamp",
-                order: "ascending",
-              },
-            ],
-          ],
           includedPaths: [
             {
               path: "/*",
@@ -67,16 +50,12 @@ export const createApp = async () => {
 
   const CONTAINER = await initializeCosmos();
 
-  const initializeTableStorage = pipe(
-    getTableServiceClient(config.STORAGE_CONN_STRING, {
-      allowInsecureConnection: config.ALLOW_INSECURE_CONNECTION,
-    }),
-    (client) => createTableIfNotExists(client, "scout" as NonEmptyString)
-  );
-  await initializeTableStorage();
-
   const CONSUMERS = await pipe(
-    initializeConsumers(config.AMPQ_CONNECTION_STRING, [InitiativeEnum.FOO]),
+    initializeConsumers(
+      config.SERVICE_BUS_CONNECTION_STRING,
+      config.SERVICE_BUS_TOPIC_NAME,
+      [InitiativeEnum.FOO]
+    ),
     TE.getOrElse((err) => {
       throw err;
     })
@@ -129,7 +108,7 @@ export const createApp = async () => {
     console.log(`scout-ms app listening on port ${port}`);
   });
 
-  const runAmpqHandlers = pipe(
+  const runServiceBusHandlers = pipe(
     CONTAINER,
     upsertDocument,
     cosmosDocumentHandler,
@@ -137,15 +116,15 @@ export const createApp = async () => {
       pipe(
         Object.entries(CONSUMERS),
         (entries) =>
-          entries.map(([initiative, queue]) =>
-            ampqHandler(queue, initiative)(docHandler)
+          entries.map(([_, receiver]) =>
+            serviceBusHandler(receiver)(docHandler)
           ),
         AR.sequence(TE.ApplicativePar)
       ),
     TE.toUnion
   );
 
-  void runAmpqHandlers();
+  void runServiceBusHandlers();
 };
 
 createApp().then(console.log).catch(console.error);

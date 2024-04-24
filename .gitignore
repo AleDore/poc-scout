@@ -2,10 +2,13 @@ enqueue-ms/dist/*
 enqueue-ms/dist
 enqueue-ms/node_modules/*
 enqueue-ms/node_modules
+enqueue-ms/.composenv
 load-test/dist/*
 load-test/dist
 load-test/node_modules/*
 load-test/node_modules
 scout-ms/node_modules/*
 scout-ms/node_modules
+scout-ms/dist
+scout-ms/.composenv
 **/.env

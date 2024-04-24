@@ -21,8 +21,8 @@ export const IConfig = t.type({
   COSMOS_DATABASE: NonEmptyString,
   COSMOS_ENDPOINT: NonEmptyString,
   COSMOS_KEY: NonEmptyString,
-  AMPQ_CONNECTION_STRING: NonEmptyString,
-  STORAGE_CONN_STRING: NonEmptyString,
+  SERVICE_BUS_CONNECTION_STRING: NonEmptyString,
+  SERVICE_BUS_TOPIC_NAME: NonEmptyString,
   isProduction: t.boolean,
 });
 

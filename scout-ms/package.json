@@ -27,6 +27,7 @@
     "typescript": "^5.1.6"
   },
   "dependencies": {
+    "@azure/service-bus": "^7.9.4",
     "@pagopa/ts-commons": "^10.10.0",
     "@azure/cosmos": "^4.0.0",
     "amqplib": "^0.10.3",

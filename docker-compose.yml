@@ -1,28 +1,28 @@
 version: "2.2"
 
 services:
-  cosmosdb:
-    image: mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:latest
-    container_name: azure-cosmosdb-linux-emulator
-    hostname: "azure-cosmosdb-linux-emulator"
-    tty: true
-    mem_limit: 12GB
-    cpu_count: 8
-    networks:
-       - poc-be
-    ports:
-      - 8082:8081
-      - 10251:10251
-      - 10252:10252
-      - 10253:10253
-      - 10254:10254
-    expose:
-      - "8082"
-      - "10251-10255"
-    environment:
-      - AZURE_COSMOS_EMULATOR_PARTITION_COUNT=10
-      - AZURE_COSMOS_EMULATOR_ENABLE_DATA_PERSISTENCE=true
-      - AZURE_COSMOS_EMULATOR_IP_ADDRESS_OVERRIDE=127.0.0.1
+  # cosmosdb:
+  #   image: mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:latest
+  #   container_name: azure-cosmosdb-linux-emulator
+  #   hostname: "azure-cosmosdb-linux-emulator"
+  #   tty: true
+  #   mem_limit: 12GB
+  #   cpu_count: 8
+  #   networks:
+  #      - poc-be
+  #   ports:
+  #     - 8082:8081
+  #     - 10251:10251
+  #     - 10252:10252
+  #     - 10253:10253
+  #     - 10254:10254
+  #   expose:
+  #     - "8082"
+  #     - "10251-10255"
+  #   environment:
+  #     - AZURE_COSMOS_EMULATOR_PARTITION_COUNT=10
+  #     - AZURE_COSMOS_EMULATOR_ENABLE_DATA_PERSISTENCE=true
+  #     - AZURE_COSMOS_EMULATOR_IP_ADDRESS_OVERRIDE=127.0.0.1
 
   storage-account:
     image: mcr.microsoft.com/azure-storage/azurite
@@ -36,21 +36,7 @@ services:
     networks:
        - poc-be
 
-  rabbitmq:
-    image: rabbitmq:3-management-alpine
-    container_name: 'rabbitmq'
-    ports:
-        - 5672:5672
-        - 15672:15672
-    volumes:
-        - ~/.docker-conf/rabbitmq/data/:/var/lib/rabbitmq/
-        - ~/.docker-conf/rabbitmq/log/:/var/log/rabbitmq
-    networks:
-      - poc-be
-
   enqueue-ms:
-    depends_on:
-      - rabbitmq
     container_name: enqueue-ms
     restart: always
     build:
@@ -59,7 +45,7 @@ services:
     environment:
       - NODE_TLS_REJECT_UNAUTHORIZED=0
     env_file:
-      - ./enqueue-ms/.dockerenv
+      - ./enqueue-ms/.composenv
     expose:
       - "3000"
     ports:
@@ -70,9 +56,7 @@ services:
 
   scout-ms:
     depends_on:
-      - rabbitmq
       - storage-account
-      - cosmosdb
     container_name: scout-ms
     restart: always
     build:
@@ -81,7 +65,7 @@ services:
     environment:
       - NODE_TLS_REJECT_UNAUTHORIZED=0
     env_file:
-      - ./scout-ms/.dockerenv
+      - ./scout-ms/.composenv
     expose:
       - "3001"
     ports:

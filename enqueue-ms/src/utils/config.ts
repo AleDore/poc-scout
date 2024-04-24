@@ -15,7 +15,8 @@ import { readableReport } from "./logging";
 // global app configuration
 export type IConfig = t.TypeOf<typeof IConfig>;
 export const IConfig = t.type({
-  AMPQ_CONNECTION_STRING: NonEmptyString,
+  SERVICE_BUS_CONNECTION_STRING: NonEmptyString,
+  SERVICE_BUS_TOPIC_NAME: NonEmptyString,
   isProduction: t.boolean,
 });
 
